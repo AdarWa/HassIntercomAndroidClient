@@ -10,7 +10,17 @@ data class AudioFormat(
     val sampleRate: Int = 16000,
     val channels: Int = 1,
     val frameMs: Int = 40
-)
+){
+    fun bufferSize(): Int {
+        val bytesPerSample = when (encoding) {
+            "pcm_s16le" -> 2
+            else -> error("Unsupported encoding: $encoding")
+        }
+        val samplesPerFrame = (sampleRate * frameMs) / 1000
+        return samplesPerFrame * channels * bytesPerSample
+    }
+
+}
 
 data class HomeAudioStream(
     val streamId: String,

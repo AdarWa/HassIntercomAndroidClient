@@ -171,7 +171,7 @@ class HomeAssistantClient(
         if (direction != "intercom_to_client") return
         val dataStr = msg.optString("data") ?: return
         val frame = Base64.decode(dataStr.toByteArray(Charsets.US_ASCII), Base64.DEFAULT)
-        scope.launch { stream.sink.play(frame) }
+        stream.sink.play(frame)
     }
 
     private fun handleEvent(msg: JSONObject) = Log.i("HAClient", "Event: ${msg.optString("event")}")

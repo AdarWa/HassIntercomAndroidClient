@@ -7,8 +7,6 @@ import android.media.AudioTrack
 import android.media.MediaRecorder
 import android.util.Log
 import androidx.annotation.RequiresPermission
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import net.adarw.hassintercom.protocol.AudioSink
 import net.adarw.hassintercom.protocol.AudioSource
 
@@ -17,19 +15,14 @@ class MicrophoneAudioSource(private val format: net.adarw.hassintercom.protocol.
     private var bufferSize: Int = 0
 
     @RequiresPermission(android.Manifest.permission.RECORD_AUDIO)
-    override suspend fun start(): Unit = withContext(Dispatchers.IO) {
+    override fun start(){
         try {
-            val minBufferSize = AudioRecord.getMinBufferSize(
-                format.sampleRate,
-                AudioFormat.CHANNEL_IN_MONO,
-                AudioFormat.ENCODING_PCM_16BIT
-            )
-            if (minBufferSize <= 0) {
-                Log.e(MICROPHONE_TAG, "Invalid AudioRecord buffer size: $minBufferSize")
+            bufferSize = format.bufferSize()
+            if (bufferSize <= 0) {
+                Log.e(MICROPHONE_TAG, "Invalid AudioRecord buffer size: $bufferSize")
                 bufferSize = 0
-                return@withContext
+                return
             }
-            bufferSize = minBufferSize
             val audioRecord = AudioRecord(
                 MediaRecorder.AudioSource.MIC,
                 format.sampleRate,
@@ -48,7 +41,7 @@ class MicrophoneAudioSource(private val format: net.adarw.hassintercom.protocol.
         }
     }
 
-    override suspend fun stop(): Unit = withContext(Dispatchers.IO) {
+    override fun stop(){
         try {
             recorder?.stop()
         } catch (e: IllegalStateException) {
@@ -58,10 +51,10 @@ class MicrophoneAudioSource(private val format: net.adarw.hassintercom.protocol.
         }
     }
 
-    override suspend fun readFrame(): ByteArray = withContext(Dispatchers.IO) {
-        val currentRecorder = recorder ?: return@withContext ByteArray(0)
+    override fun readFrame(): ByteArray {
+        val currentRecorder = recorder ?: return ByteArray(0)
         if (bufferSize <= 0) {
-            return@withContext ByteArray(0)
+            return ByteArray(0)
         }
         val buffer = ByteArray(bufferSize)
         val read = currentRecorder.read(buffer, 0, buffer.size)
@@ -69,9 +62,11 @@ class MicrophoneAudioSource(private val format: net.adarw.hassintercom.protocol.
             if (read < 0) {
                 Log.w(MICROPHONE_TAG, "AudioRecord read error code: $read")
             }
-            return@withContext ByteArray(0)
+            return ByteArray(0)
         }
+        Log.d(MICROPHONE_TAG, read.toString())
         buffer.copyOf(read)
+        return buffer
     }
 
     private fun cleanupRecorder() {
@@ -91,18 +86,13 @@ class SimpleAudioSink(private val format: net.adarw.hassintercom.protocol.AudioF
     private val lock = Any()
 
 
-    override suspend fun start(): Unit = withContext(Dispatchers.IO) {
-        val minBufferSize = AudioTrack.getMinBufferSize(
-            format.sampleRate,
-            AudioFormat.CHANNEL_OUT_MONO,
-            AudioFormat.ENCODING_PCM_16BIT
-        )
-        if (minBufferSize <= 0) {
-            Log.e(SINK_TAG, "Invalid AudioTrack buffer size: $minBufferSize")
+    override fun start() {
+        bufferSize = format.bufferSize()
+        if (bufferSize <= 0) {
+            Log.e(SINK_TAG, "Invalid AudioTrack buffer size: $bufferSize")
             bufferSize = 0
-            return@withContext
+            return
         }
-        bufferSize = 1280
         val track = AudioTrack.Builder()
             .setAudioAttributes(
                 AudioAttributes.Builder()
@@ -125,14 +115,14 @@ class SimpleAudioSink(private val format: net.adarw.hassintercom.protocol.AudioF
             track.release()
             audioTrack = null
             bufferSize = 0
-            return@withContext
+            return
         }
         audioTrack = track
         track.play()
     }
 
-    override suspend fun stop() = withContext(Dispatchers.IO) {
-        val track = synchronized(lock) { audioTrack } ?: return@withContext
+    override fun stop(){
+        val track = synchronized(lock) { audioTrack } ?: return
 
         try {
             track.stop()
@@ -145,16 +135,16 @@ class SimpleAudioSink(private val format: net.adarw.hassintercom.protocol.AudioF
         }
     }
 
-    override suspend fun play(frame: ByteArray) = withContext(Dispatchers.IO) {
+    override fun play(frame: ByteArray){
         if (frame.isEmpty() || frame.size % 2 != 0) {
             Log.w(SINK_TAG, "Skipping invalid audio frame, size=${frame.size}")
-            return@withContext
+            return
         }
 
         val track = synchronized(lock) { audioTrack }
         if (track == null || track.state != AudioTrack.STATE_INITIALIZED) {
             Log.w(SINK_TAG, "AudioTrack not ready; dropping frame")
-            return@withContext
+            return
         }
         Log.d(SINK_TAG, bufferSize.toString() + " " + frame.size)
         val written = track.write(frame, 0, frame.size)
@@ -167,19 +157,4 @@ class SimpleAudioSink(private val format: net.adarw.hassintercom.protocol.AudioF
     companion object {
         private const val SINK_TAG = "SimpleAudioSink"
     }
-}
-
-class NullAudioSink(private val format: net.adarw.hassintercom.protocol.AudioFormat) : AudioSink{
-    override suspend fun start() {
-
-    }
-
-    override suspend fun stop() {
-
-    }
-
-    override suspend fun play(frame: ByteArray) {
-
-    }
-
 }

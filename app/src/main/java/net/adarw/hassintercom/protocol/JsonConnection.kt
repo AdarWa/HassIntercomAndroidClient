@@ -9,6 +9,7 @@ import java.io.IOException
 import java.io.InputStreamReader
 import java.io.OutputStreamWriter
 import java.net.Socket
+import java.util.UUID
 
 class JsonConnection(private val host: String, private val port: Int) {
     private lateinit var socket: Socket
