@@ -136,7 +136,7 @@ class HomeAssistantClient(
     private suspend fun sourceLoop(stream: HomeAudioStream) {
         stream.source.start()
         stream.sink.start()
-        val frameInterval = stream.format.frameMs / 1000.0
+        val frameInterval = stream.format.frameMs
         try {
             while (true) {
                 val frame = stream.source.readFrame()
@@ -153,7 +153,7 @@ class HomeAssistantClient(
                     )
                 )
                 stream.sequence += 1
-                delay((frameInterval * 1000).toLong())
+                delay((frameInterval).toLong())
             }
         } catch (e: CancellationException) {
             // stream stopped
@@ -169,8 +169,8 @@ class HomeAssistantClient(
         val stream = streams[streamId] ?: return
         val direction = msg.optString("direction")
         if (direction != "intercom_to_client") return
-        val dataStr = msg.optString("data")
-        val frame = Base64.decode(dataStr, Base64.NO_WRAP)
+        val dataStr = msg.optString("data") ?: return
+        val frame = Base64.decode(dataStr.toByteArray(Charsets.US_ASCII), Base64.DEFAULT)
         scope.launch { stream.sink.play(frame) }
     }
 
