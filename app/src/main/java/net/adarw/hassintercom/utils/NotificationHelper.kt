@@ -7,17 +7,16 @@ import android.content.Context
 
 object NotificationHelper {
 
-    fun buildNotification(context: Context): Notification {
-        val channelId = "intercom_service"
-        val channel = NotificationChannel(
-            channelId, "Intercom Service", NotificationManager.IMPORTANCE_LOW
-        )
-        val manager = context.getSystemService(NotificationManager::class.java)
-        manager.createNotificationChannel(channel)
+  fun buildNotification(context: Context): Notification {
+    val channelId = "intercom_service"
+    val channel =
+        NotificationChannel(channelId, "Intercom Service", NotificationManager.IMPORTANCE_LOW)
+    val manager = context.getSystemService(NotificationManager::class.java)
+    manager.createNotificationChannel(channel)
 
-        return Notification.Builder(context, channelId)
-            .setContentTitle("Intercom Active")
-            .setContentText("Streaming audio...")
-            .build()
-    }
+    return Notification.Builder(context, channelId)
+        .setContentTitle("Intercom Active")
+        .setContentText("Streaming audio...")
+        .build()
+  }
 }
