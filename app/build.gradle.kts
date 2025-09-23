@@ -2,6 +2,21 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    id("com.diffplug.spotless")
+}
+
+spotless {
+    kotlin {
+        target("**/*.kt")
+//        kt("1.3.0").editorConfigOverride(
+//            mapOf("disabled_rules" to "no-wildcard-imports"),
+//        )
+        ktfmt()
+    }
+    kotlinGradle {
+        target("**/*.gradle.kts")
+        ktlint()
+    }
 }
 
 android {
@@ -23,7 +38,7 @@ android {
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
+                "proguard-rules.pro",
             )
         }
     }
@@ -56,4 +71,5 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
+    testImplementation(kotlin("test"))
 }
