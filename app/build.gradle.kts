@@ -1,3 +1,5 @@
+import java.net.URI
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -8,9 +10,6 @@ plugins {
 spotless {
     kotlin {
         target("**/*.kt")
-//        kt("1.3.0").editorConfigOverride(
-//            mapOf("disabled_rules" to "no-wildcard-imports"),
-//        )
         ktfmt()
     }
     kotlinGradle {
@@ -64,6 +63,9 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
+    implementation(libs.org.eclipse.paho.client.mqttv3)
+    implementation(libs.org.eclipse.paho.android.service)
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
