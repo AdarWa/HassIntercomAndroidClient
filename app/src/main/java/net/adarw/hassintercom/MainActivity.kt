@@ -2,41 +2,36 @@ package net.adarw.hassintercom
 
 import android.Manifest
 import android.content.pm.PackageManager
-import android.media.AudioManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
-import java.util.UUID
-import kotlin.coroutines.cancellation.CancellationException
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.launch
 import net.adarw.hassintercom.protocol.AudioFormat
-import net.adarw.hassintercom.protocol.AudioSink
-import net.adarw.hassintercom.protocol.AudioSource
-import net.adarw.hassintercom.protocol.HomeAssistantClient
-import net.adarw.hassintercom.service.MicrophoneAudioSource
-import net.adarw.hassintercom.service.SimpleAudioSink
+import net.adarw.hassintercom.utils.StreamPrefs
 
 class MainActivity : ComponentActivity() {
-
-  private val clientScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-  private var haClient: HomeAssistantClient? = null
-  private var streamId = UUID.randomUUID().toString()
-
-  private val audioFormat = AudioFormat(sampleRate = 16000, channels = 1, frameMs = 400)
-  private val sourceFactory: (AudioFormat) -> AudioSource = { MicrophoneAudioSource(it) }
-  private val sinkFactory: (AudioFormat) -> AudioSink = { SimpleAudioSink(it) }
 
   // Expose a MutableState for UI error messages
   val errorMessage = mutableStateOf<String?>(null)
@@ -48,67 +43,32 @@ class MainActivity : ComponentActivity() {
 
   override fun onDestroy() {
     super.onDestroy()
-    stopClient()
-    clientScope.cancel()
-  }
-
-  private fun startClient(host: String, port: Int, clientId: String, audioFormat: AudioFormat) {
-    if (haClient != null) return
-    try {
-      val audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
-      audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
-      audioManager.isSpeakerphoneOn = true
-      val client =
-          HomeAssistantClient(
-              host = host,
-              port = port,
-              clientId = clientId,
-              preferredFormat = audioFormat,
-              sourceFactory = sourceFactory,
-              sinkFactory = sinkFactory,
-              autoStart = true,
-              requestedStreamId = streamId)
-      haClient = client
-
-      clientScope.launch {
-        try {
-          client.run()
-        } catch (e: CancellationException) {
-          // coroutine was cancelled, ignore
-        } catch (e: Exception) {
-          e.printStackTrace()
-          errorMessage.value = e.message ?: "Unknown error in client.run()"
-        }
-      }
-    } catch (e: Exception) {
-      e.printStackTrace()
-      errorMessage.value = e.message ?: "Failed to start client"
-    }
-  }
-
-  private fun stopClient() {
-    clientScope.launch {
-      try {
-        haClient?.requestStopAudio(streamId)
-      } catch (e: Exception) {
-        e.printStackTrace()
-        errorMessage.value = e.message ?: "Failed to stop client"
-      } finally {
-        haClient = null
-      }
-    }
+    Client.clean()
   }
 
   @Composable
   fun IntercomUI() {
-    var host by remember { mutableStateOf("192.168.1.67") }
-    var port by remember { mutableStateOf("8765") }
-    var clientId by remember { mutableStateOf("android-client-1") }
-    var sampleRate by remember { mutableStateOf("16000") }
-    var channels by remember { mutableStateOf("1") }
-    var frameMs by remember { mutableStateOf("400") }
+    val context = LocalContext.current
+    val streamPrefs = remember { StreamPrefs(context) }
+
+    var host by remember { mutableStateOf(streamPrefs.host) }
+    var port by remember { mutableStateOf(streamPrefs.port) }
+    var clientId by remember { mutableStateOf(streamPrefs.clientId) }
+    var sampleRate by remember { mutableStateOf(streamPrefs.sampleRate) }
+    var channels by remember { mutableStateOf(streamPrefs.channels) }
+    var frameMs by remember { mutableStateOf(streamPrefs.frameMs) }
+
+    // Automatically save changes
+    LaunchedEffect(host, port, clientId, sampleRate, channels, frameMs) {
+      streamPrefs.host = host
+      streamPrefs.port = port
+      streamPrefs.clientId = clientId
+      streamPrefs.sampleRate = sampleRate
+      streamPrefs.channels = channels
+      streamPrefs.frameMs = frameMs
+    }
     var isRunning by remember { mutableStateOf(false) }
-    var streamId by remember { mutableStateOf(this@MainActivity.streamId) }
+    var streamId by remember { mutableStateOf(Client.streamId) }
 
     var hasAudioPermission by remember {
       mutableStateOf(
@@ -174,9 +134,9 @@ class MainActivity : ComponentActivity() {
                 }
 
                 runCatching {
-                      if (isRunning) stopClient()
+                      if (isRunning) Client.stopClient()
                       else
-                          startClient(
+                          Client.startClient(
                               host = host,
                               port = port.toIntOrNull() ?: 8765,
                               clientId = clientId,
@@ -184,7 +144,8 @@ class MainActivity : ComponentActivity() {
                                   AudioFormat(
                                       sampleRate = sampleRate.toIntOrNull() ?: 16000,
                                       channels = channels.toIntOrNull() ?: 1,
-                                      frameMs = frameMs.toIntOrNull() ?: 400))
+                                      frameMs = frameMs.toIntOrNull() ?: 400),
+                              this@MainActivity)
                       isRunning = !isRunning
                     }
                     .onFailure {
