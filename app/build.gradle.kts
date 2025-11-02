@@ -63,6 +63,7 @@ dependencies {
     implementation(libs.androidx.material3)
     implementation(libs.org.eclipse.paho.client.mqttv3)
     implementation(libs.org.eclipse.paho.android.service)
+    implementation(libs.androidx.localbroadcastmanager)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

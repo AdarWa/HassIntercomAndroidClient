@@ -3,6 +3,7 @@ package net.adarw.hassintercom
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -94,6 +95,13 @@ class MainActivity : ComponentActivity() {
           ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.RECORD_AUDIO) ==
               PackageManager.PERMISSION_GRANTED)
     }
+    var hasNotificationPermission by remember {
+      mutableStateOf(
+          Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+              ContextCompat.checkSelfPermission(
+                  this@MainActivity, Manifest.permission.POST_NOTIFICATIONS) ==
+                  PackageManager.PERMISSION_GRANTED)
+    }
 
     val permissionLauncher =
         rememberLauncherForActivityResult(
@@ -102,6 +110,16 @@ class MainActivity : ComponentActivity() {
               hasAudioPermission = granted
               if (!granted) {
                 errorMessage.value = "Microphone permission is required to start the intercom."
+              }
+            })
+    val notificationPermissionLauncher =
+        rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.RequestPermission(),
+            onResult = { granted ->
+              hasNotificationPermission = granted
+              if (!granted && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                errorMessage.value =
+                    "Notification permission is required to keep the intercom service active."
               }
             })
 
@@ -197,6 +215,13 @@ class MainActivity : ComponentActivity() {
                 Button(
                     onClick = {
                       val serviceIntent = Intent(this@MainActivity, AudioMqttService::class.java)
+                      if (
+                          Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                              !hasNotificationPermission) {
+                        notificationPermissionLauncher.launch(
+                            Manifest.permission.POST_NOTIFICATIONS)
+                        return@Button
+                      }
                       this@MainActivity.startForegroundService(serviceIntent)
                     },
                     modifier = Modifier.fillMaxWidth()) {
