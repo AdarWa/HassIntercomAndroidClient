@@ -1,5 +1,7 @@
 package net.adarw.hassintercom.utils
 
+//noinspection SuspiciousImport
+import android.R
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -8,31 +10,40 @@ import android.content.Context
 import androidx.core.app.NotificationCompat
 
 fun buildNotification(context: Context): Notification {
-  val channelId = "intercom_service"
-  val channel =
-      NotificationChannel(channelId, "Intercom Service", NotificationManager.IMPORTANCE_LOW)
-  val manager = context.getSystemService(NotificationManager::class.java)
-  manager.createNotificationChannel(channel)
+    val channelId = "intercom_service"
+    val channelName = "Intercom Service"
+    val manager = context.getSystemService(NotificationManager::class.java)!!
 
-  return Notification.Builder(context, channelId)
-      .setContentTitle("Intercom Active")
-      .setContentText("Streaming audio...")
-      .build()
+    val channel = NotificationChannel(
+        channelId,
+        channelName,
+        NotificationManager.IMPORTANCE_HIGH
+    )
+    manager.createNotificationChannel(channel)
+
+    // Make sure R.drawable.ic_notification exists and is a valid small icon
+    val builder = NotificationCompat.Builder(context, channelId)
+        .setContentTitle("Intercom Active")
+        .setContentText("Streaming audio...")
+        .setSmallIcon(R.drawable.ic_notification_overlay) // required on many devices
+        .setOngoing(true)
+
+    return builder.build()
 }
 
-fun showErrorNotification(message: String, ctx: Context) {
+fun Context.showErrorNotification(message: String) {
   val channelId = "stream_error_channel"
 
   val channel = NotificationChannel(channelId, "Stream Errors", NotificationManager.IMPORTANCE_HIGH)
-  ctx.getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
+  getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
 
   val notification =
-      NotificationCompat.Builder(ctx, channelId)
+      NotificationCompat.Builder(this, channelId)
           .setContentTitle("Stream Client Error")
           .setContentText(message)
           .setSmallIcon(android.R.drawable.stat_notify_error)
           .setPriority(NotificationCompat.PRIORITY_HIGH)
           .build()
 
-  if (ctx is Service) ctx.startForeground(2, notification)
+  if (this is Service) startForeground(2, notification)
 }

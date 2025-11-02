@@ -29,4 +29,27 @@ class StreamPrefs(context: Context) {
   var frameMs: String
     get() = prefs.getString("frameMs", "400") ?: "400"
     set(value) = prefs.edit { putString("frameMs", value) }
+
+  var mqttHost: String
+    get() = prefs.getString("mqttHost", "") ?: ""
+    set(value) = prefs.edit { putString("mqttHost", value) }
+
+  var mqttPort: String
+    get() = prefs.getString("mqttPort", "1883") ?: "1883"
+    set(value) = prefs.edit { putString("mqttPort", value) }
+
+  var mqttUser: String
+    get() = prefs.getString("mqttUser", "") ?: ""
+    set(value) = prefs.edit { putString("mqttUser", value) }
+
+  var mqttPassword: String
+    get() = prefs.getString("mqttPassword", "") ?: ""
+    set(value) = prefs.edit { putString("mqttPassword", value) }
+
+  var mqttTopic: String
+    get() = prefs.getString("mqttTopic", "") ?: ""
+    set(value) = prefs.edit { putString("mqttTopic", value) }
+
+  val mqttURI: String
+    get() = "mqtt://${mqttHost}:${mqttPort}"
 }
