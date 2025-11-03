@@ -5,7 +5,6 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -215,9 +214,8 @@ class MainActivity : ComponentActivity() {
                 Button(
                     onClick = {
                       val serviceIntent = Intent(this@MainActivity, AudioMqttService::class.java)
-                      if (
-                          Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-                              !hasNotificationPermission) {
+                      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                          !hasNotificationPermission) {
                         notificationPermissionLauncher.launch(
                             Manifest.permission.POST_NOTIFICATIONS)
                         return@Button

@@ -4,7 +4,9 @@ import android.app.Service
 import android.content.Intent
 import android.os.IBinder
 import android.util.Log
-import info.mqtt.android.service.MqttAndroidClient
+import com.hivemq.client.mqtt.MqttClient
+import com.hivemq.client.mqtt.mqtt5.Mqtt5AsyncClient
+import java.nio.charset.StandardCharsets
 import net.adarw.hassintercom.Client
 import net.adarw.hassintercom.START_AUDIO_COMMAND
 import net.adarw.hassintercom.STOP_AUDIO_COMMAND
@@ -12,22 +14,13 @@ import net.adarw.hassintercom.protocol.AudioFormat
 import net.adarw.hassintercom.utils.StreamPrefs
 import net.adarw.hassintercom.utils.buildNotification
 import net.adarw.hassintercom.utils.showErrorNotification
-import org.eclipse.paho.client.mqttv3.DisconnectedBufferOptions
-import org.eclipse.paho.client.mqttv3.IMqttActionListener
-import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken
-import org.eclipse.paho.client.mqttv3.IMqttToken
-import org.eclipse.paho.client.mqttv3.MqttCallbackExtended
-import org.eclipse.paho.client.mqttv3.MqttConnectOptions
-import org.eclipse.paho.client.mqttv3.MqttException
-import org.eclipse.paho.client.mqttv3.MqttMessage
 
 class AudioMqttService : Service() {
 
   private lateinit var streamPrefs: StreamPrefs
-  private lateinit var mqtt: MqttAndroidClient
+  private lateinit var mqtt: Mqtt5AsyncClient
   private var mqttConnected = false
   private var isStreaming = false
-
 
   override fun onCreate() {
     super.onCreate()
@@ -46,93 +39,47 @@ class AudioMqttService : Service() {
 
   private fun connectMqtt() {
     Log.i(TAG, "Connecting to MQTT at ${streamPrefs.mqttURI} with clientId=${streamPrefs.clientId}")
-    mqtt = MqttAndroidClient(this, streamPrefs.mqttURI, streamPrefs.clientId)
-    val options =
-        MqttConnectOptions().apply {
-          isAutomaticReconnect = true
-          isCleanSession = false
-          mqttVersion = MqttConnectOptions.MQTT_VERSION_DEFAULT
-          if (streamPrefs.mqttUser != "" && streamPrefs.mqttPassword != "") {
-            userName = streamPrefs.mqttUser
-            password = streamPrefs.mqttPassword.toCharArray()
+    mqtt =
+        MqttClient.builder()
+            .identifier(streamPrefs.clientId)
+            .serverHost(streamPrefs.mqttHost)
+            .serverPort(streamPrefs.mqttPort.toIntOrNull() ?: 1883)
+            .useMqttVersion5()
+            .buildAsync()
+    mqtt
+        .connectWith()
+        .simpleAuth()
+        .username(streamPrefs.mqttUser)
+        .password(streamPrefs.mqttPassword.toByteArray())
+        .applySimpleAuth()
+        .send()
+        .whenComplete { ack, e ->
+          if (e != null) {
+            Log.e(TAG, "Failed to connect to MQTT", e)
+            mqttConnected = false
+            startForeground(1, buildNotification(this, false))
+            showErrorNotification(e.message ?: "Unknown exception connecting to MQTT")
+            return@whenComplete
           }
+          subscribeToTopic()
+          mqttConnected = true
+          Log.i(TAG, "MQTT connection complete. ack=$ack")
         }
-    try {
-      mqtt.setCallback(
-          object : MqttCallbackExtended {
-            override fun connectComplete(reconnect: Boolean, serverURI: String?) {
-              if (reconnect) subscribeToTopic()
-              mqttConnected = true
-              Log.i(TAG, "MQTT connection complete. reconnect=$reconnect serverURI=$serverURI")
-            }
-
-            override fun connectionLost(cause: Throwable?) {
-              mqttConnected = false
-              if (cause != null) {
-                Log.w(TAG, "MQTT connection lost", cause)
-              } else {
-                Log.w(TAG, "MQTT connection lost without cause")
-              }
-            }
-
-            @Throws(java.lang.Exception::class)
-            override fun messageArrived(topic: String, message: MqttMessage) {
-              Log.d(TAG, "MQTT message arrived: topic=$topic payload=${String(message.payload)}")
-              acceptPayload(topic, String(message.payload))
-            }
-
-            override fun deliveryComplete(token: IMqttDeliveryToken?) {}
-          })
-      mqtt.connect(
-          options,
-          object : IMqttActionListener {
-            override fun onSuccess(asyncActionToken: IMqttToken?) {
-              val disconnectedBufferOptions =
-                  DisconnectedBufferOptions().apply {
-                    isBufferEnabled = true
-                    bufferSize = 100
-                    isPersistBuffer = false
-                    isDeleteOldestMessages = false
-                  }
-              mqtt.setBufferOpts(disconnectedBufferOptions)
-              Log.i(TAG, "MQTT connected successfully")
-              subscribeToTopic()
-            }
-
-            override fun onFailure(asyncActionToken: IMqttToken?, exception: Throwable) {
-              Log.e(TAG, "MQTT connection failed", exception)
-              throw RuntimeException(exception.message ?: "Unknown MQTT failure")
-            }
-          })
-    } catch (e: Exception) {
-      Log.e(TAG, "Error connecting to MQTT", e)
-      showErrorNotification(e.message ?: "Unknown error while connecting to MQTT")
-    }
   }
 
   private fun subscribeToTopic() {
     Log.d(TAG, "Subscribing to MQTT topic ${streamPrefs.mqttTopic}")
     try {
-      mqtt.subscribe(
-          streamPrefs.mqttTopic,
-          0,
-          null,
-          object : IMqttActionListener {
-            override fun onSuccess(asyncActionToken: IMqttToken?) {
-              mqttConnected = true
-              Log.i(TAG, "Subscribed to MQTT topic ${streamPrefs.mqttTopic}")
-            }
-
-            override fun onFailure(asyncActionToken: IMqttToken?, exception: Throwable?) {
-              mqttConnected = false
-              if (exception != null) {
-                Log.e(TAG, "Failed to subscribe to MQTT topic ${streamPrefs.mqttTopic}", exception)
-              } else {
-                Log.e(TAG, "Failed to subscribe to MQTT topic ${streamPrefs.mqttTopic}")
-              }
-            }
-          })
-    } catch (ex: MqttException) {
+      mqtt
+          .subscribeWith()
+          .topicFilter(streamPrefs.mqttTopic)
+          .callback { payload ->
+              acceptPayload(
+                  StandardCharsets.UTF_8.decode(payload.topic.toByteBuffer()).toString(),
+                  StandardCharsets.UTF_8.decode(payload.payload.get()).toString())
+          }
+          .send()
+    } catch (ex: Exception) {
       ex.printStackTrace()
       Log.e(TAG, "Exception subscribing to MQTT topic ${streamPrefs.mqttTopic}", ex)
       showErrorNotification(ex.message ?: "Unknown error while subscribing to MQTT topic")
@@ -149,8 +96,9 @@ class AudioMqttService : Service() {
         Log.i(TAG, "Stop audio command received")
         stopAudio()
       } else {
-        Log.w(TAG, "Unsupported command received: $payload")
-        throw RuntimeException("Unsupported command: $payload")
+        val message = "Unsupported command: $payload"
+        Log.w(TAG, message)
+        showErrorNotification(message)
       }
     }
   }

@@ -5,7 +5,6 @@ import android.content.Context.AUDIO_SERVICE
 import android.media.AudioManager
 import java.util.UUID
 import kotlin.coroutines.cancellation.CancellationException
-import kotlin.jvm.Throws
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob

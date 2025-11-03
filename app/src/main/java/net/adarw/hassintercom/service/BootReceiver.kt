@@ -12,11 +12,9 @@ class BootReceiver : BroadcastReceiver() {
   override fun onReceive(context: Context, intent: Intent) {
     if (intent.action == Intent.ACTION_BOOT_COMPLETED) {
       val serviceIntent = Intent(context, AudioMqttService::class.java)
-      if (
-          Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
-              ContextCompat.checkSelfPermission(
-                  context, Manifest.permission.POST_NOTIFICATIONS) ==
-                  PackageManager.PERMISSION_GRANTED) {
+      if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+          ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
+              PackageManager.PERMISSION_GRANTED) {
         context.startForegroundService(serviceIntent)
       }
     }
