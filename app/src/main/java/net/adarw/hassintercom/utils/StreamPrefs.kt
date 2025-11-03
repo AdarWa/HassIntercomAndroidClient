@@ -51,5 +51,5 @@ class StreamPrefs(context: Context) {
     set(value) = prefs.edit { putString("mqttTopic", value) }
 
   val mqttURI: String
-    get() = "mqtt://${mqttHost}:${mqttPort}"
+    get() = "tcp://${mqttHost}:${mqttPort}"
 }

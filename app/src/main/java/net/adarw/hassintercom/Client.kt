@@ -26,7 +26,6 @@ object Client {
   private val sourceFactory: (AudioFormat) -> AudioSource = { MicrophoneAudioSource(it) }
   private val sinkFactory: (AudioFormat) -> AudioSink = { SimpleAudioSink(it) }
 
-  @Throws(RuntimeException::class)
   fun startClient(
       host: String,
       port: Int,
@@ -67,7 +66,6 @@ object Client {
     }
   }
 
-  @Throws(RuntimeException::class)
   fun stopClient() {
     clientScope.launch {
       try {

@@ -4,6 +4,7 @@ import android.app.Service
 import android.content.Intent
 import android.os.IBinder
 import android.util.Log
+import info.mqtt.android.service.MqttAndroidClient
 import net.adarw.hassintercom.Client
 import net.adarw.hassintercom.START_AUDIO_COMMAND
 import net.adarw.hassintercom.STOP_AUDIO_COMMAND
@@ -11,7 +12,6 @@ import net.adarw.hassintercom.protocol.AudioFormat
 import net.adarw.hassintercom.utils.StreamPrefs
 import net.adarw.hassintercom.utils.buildNotification
 import net.adarw.hassintercom.utils.showErrorNotification
-import org.eclipse.paho.android.service.MqttAndroidClient
 import org.eclipse.paho.client.mqttv3.DisconnectedBufferOptions
 import org.eclipse.paho.client.mqttv3.IMqttActionListener
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken
@@ -51,6 +51,7 @@ class AudioMqttService : Service() {
         MqttConnectOptions().apply {
           isAutomaticReconnect = true
           isCleanSession = false
+          mqttVersion = MqttConnectOptions.MQTT_VERSION_DEFAULT
           if (streamPrefs.mqttUser != "" && streamPrefs.mqttPassword != "") {
             userName = streamPrefs.mqttUser
             password = streamPrefs.mqttPassword.toCharArray()
@@ -166,7 +167,7 @@ class AudioMqttService : Service() {
               frameMs = streamPrefs.frameMs.toIntOrNull() ?: 400),
           this)
       isStreaming = true
-      startForeground(1, buildNotification(this, isStreaming))
+      startForeground(1, buildNotification(this, true))
     } catch (e: Exception) {
       e.printStackTrace()
       Log.e(TAG, "Error starting audio client", e)
@@ -179,7 +180,7 @@ class AudioMqttService : Service() {
     try {
       Client.stopClient()
       isStreaming = false
-      startForeground(1, buildNotification(this, isStreaming))
+      startForeground(1, buildNotification(this, true))
     } catch (e: Exception) {
       e.printStackTrace()
       Log.e(TAG, "Error stopping audio client", e)

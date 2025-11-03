@@ -10,7 +10,9 @@
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission
         android:name="android.permission.POST_NOTIFICATIONS"
         android:required="false"
@@ -25,9 +27,8 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.HassIntercom"
-        tools:targetApi="31">
-        <service android:name="org.eclipse.paho.android.service.MqttService">
-        </service>
+        android:usesCleartextTraffic="true"
+        tools:targetApi="36">
         <service
             android:name=".service.AudioMqttService"
             android:exported="false"

@@ -18,12 +18,12 @@ spotless {
 
 android {
     namespace = "net.adarw.hassintercom"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "net.adarw.hassintercom"
         minSdk = 26
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0"
 
@@ -43,6 +43,11 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+    packagingOptions {
+        resources {
+            excludes += listOf("META-INF/INDEX.LIST", "META-INF/io.netty.versions.properties")
+        }
+    }
     kotlinOptions {
         jvmTarget = "11"
     }
@@ -50,6 +55,7 @@ android {
         compose = true
     }
 }
+
 
 dependencies {
 
@@ -61,9 +67,7 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
-    implementation(libs.org.eclipse.paho.client.mqttv3)
-    implementation(libs.org.eclipse.paho.android.service)
-    implementation(libs.androidx.localbroadcastmanager)
+    implementation(libs.paho.mqtt.android)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
